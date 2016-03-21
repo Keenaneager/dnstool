@@ -1,0 +1,25 @@
+#!/usr/bin/env ruby
+
+require 'dnsruby'
+require 'dnstool'
+
+ROOT_RESOLVERS = %w{192.228.79.201 198.97.190.53}
+
+qname = ARGV[0]
+qtype = Dnsruby::Types.new(ARGV[1] || "a")
+
+ns, v4_hosts, _ = DnsTool.get_ns_and_glue(qname)
+servers = v4_hosts.flatten.map{|rr| rr.rdata.to_s}
+results = DnsTool.query_all_servers(servers, qname, qtype)
+
+rows = []
+servers.zip(results).each do |server, answer|
+    if answer == nil 
+        rows << [server, ""]
+    elsif qtype == Dnsruby::Types.NS 
+        rows << [server, DnsTool.print_ns(answer.get_ns_and_glue)]
+    else
+        rows << [server, DnsTool.print_rrs(answer.skip_cname_chain)]
+    end
+end
+puts DnsTool.table_with_rows("#{qname} #{qtype}", ["server", "answer"], rows)
