@@ -34,16 +34,16 @@ module DnsTool
     end
 
     def self.query_all_servers(servers, qname, qtype) 
-        result_lock = Mutex.new
         results = []
-        threads = servers.map do |s|
-            server = s.dup
-            Thread.new do 
-                msg = self.query(server, qname, qtype)
-                result_lock.synchronize{ results << msg}
+        index = 0
+        servers.inject([]) do |threads, server|
+            threads << Thread.new(server.dup, index) do |server_, i|
+                msg = self.query(server_, qname, qtype)
+                results[i] = msg
             end
-        end
-        threads.each(&:join)
+            index += 1
+            threads
+        end.each(&:join)
         results
     end
 
